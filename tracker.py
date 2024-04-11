@@ -31,7 +31,7 @@ while True:
                 peer_to_file_data[peer_port] = [file_name, file_hash]
                 print(peer_to_file_data)
             elif req_type == "get_available_files":
-                connectionSocket.send("here are the available files")
+                connectionSocket.send("here are the available files".encode())
             elif req_type == "close_connection":
                 is_connection_close_req_recieved = True
                 break

@@ -5,13 +5,11 @@ import hashlib
 import os
 
 
-peer_port = int(sys.argv[1])
-peer_dir = f"/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/peer{sys.argv[2]}_dir/"
-peer_socket = socket(AF_INET, SOCK_STREAM)
-# peer_socket.bind(('', peer_port))
-# peer_socket.listen(1)
+def get_testing_init_values():
+    port = int(sys.argv[1])
+    dirpath = f"/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/peer{sys.argv[2]}_dir/"
 
-tracker_name, tracker_port = "localhost", 12000
+    return port, dirpath
 
 
 def hash_file(filepath):
@@ -28,43 +26,52 @@ def hash_file(filepath):
     return hash_sha256.hexdigest()
 
 
-def register_peer():
-    peer_socket.send(f"register_peer,{peer_port}\n".encode())
+class Peer():
+    def __init__(self, port, dirpath):
+        self.port = port
+        self.dir = dirpath
 
+    def initiate_client_socket_with_tracker(self):
+        # Initiate a tcp client socket and connect with the tracker
+        # Register peer and their files with the tracker
+        client_socket = socket(AF_INET, SOCK_STREAM)
+        tracker_name, tracker_port = "localhost", 12000
+        client_socket.connect((tracker_name, tracker_port))
+        print("Connection Established")
+        self.register_peer(client_socket)
+        self.register_shareable_files(client_socket)
+        return client_socket
 
-def register_shareable_files():
-    # for all files in shareable_files
+    def close_client_socket_with_tracker(self, client_socket):
+        self.close_connection(client_socket)
+        client_socket.close()
+        print("Connection Closed")
 
-    # List all files in a directory using os.scandir()
-    with os.scandir(peer_dir) as entries:
-        for entry in entries:
-            if entry.is_file():  # Check if it's a file
-                file_name = entry.name
-                file_hash = hash_file(peer_dir + file_name)
-                peer_socket.send(
-                    f"register_file,{peer_port},{file_name},{file_hash}\n".encode())
+    def register_peer(self, client_socket):
+        client_socket.send(f"register_peer,{self.port}\n".encode())
 
+    def register_shareable_files(self, client_socket):
+        # List all files in a directory using os.scandir()
+        with os.scandir(self.dir) as entries:
+            for entry in entries:
+                if entry.is_file():  # Check if it's a file
+                    file_name = entry.name
+                    file_hash = hash_file(self.dir + file_name)
+                    client_socket.send(
+                        f"register_file,{self.port},{file_name},{file_hash}\n".encode())
 
-def get_available_files():
-    peer_socket.send("get_available_files\n".encode())
+    def get_available_files(self, client_socket):
+        client_socket.send("get_available_files\n".encode())
 
-
-def close_connection():
-    peer_socket.send("close_connection\n".encode())
+    def close_connection(self, client_socket):
+        client_socket.send("close_connection\n".encode())
 
 
 while True:
+    peer = Peer(*get_testing_init_values())
+    client_socket = peer.initiate_client_socket_with_tracker()
     # connectionSocket, addr = peer_socket.accept()
-    peer_socket.connect((tracker_name, tracker_port))
-    print("Connection Established")
-    register_peer()
-    register_shareable_files()
-    close_connection()
-    # while True:
-    #     cmd = input().lower()
-    #     peer_socket.send("get_available_files")
-    #     sentence = peer_socket.recv(1024).decode()
-    #     print(sentence)
-    peer_socket.close()
-    print("Connection Closed")
+    peer.get_available_files(client_socket)
+    sentence = client_socket.recv(1024).decode()
+    print(sentence)
     break
