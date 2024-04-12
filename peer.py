@@ -3,6 +3,7 @@ import sys
 import requests
 import hashlib
 import os
+import ast
 
 # Savaiz created: list of tuples (path, name, hash) for easier reference
 file_directories = []
@@ -11,7 +12,8 @@ file_directories = []
 def get_testing_init_values():
     port = int(sys.argv[1])
     path = os.getcwd()
-    dirpath = os.path.join(path, f"/peer{sys.argv[2]}_dir/")
+    dirpath = os.path.abspath(os.path.join(path, f"peer{sys.argv[2]}_dir/"))
+    print(dirpath)
 
     return port, dirpath
 
@@ -60,17 +62,20 @@ class Peer():
         tracker_name, tracker_port = "localhost", 12000
         client_socket.connect((tracker_name, tracker_port))
         print("Connection Established")
-        self.register_peer(client_socket)
-        self.register_shareable_files(client_socket)
+        return client_socket
+
+    def initiate_client_socket_with_peer(self, peer_port):
+        # Initiate a tcp client socket and connect with the tracker
+        # Register peer and their files with the tracker
+        client_socket = socket(AF_INET, SOCK_STREAM)
+        client_socket.connect(('', peer_port))
+        print("Connection Established")
         return client_socket
 
     def close_client_socket_with_tracker(self, client_socket):
-        self.close_connection(client_socket)
+        self.close_tracker_connection(client_socket)
         client_socket.close()
         print("Connection Closed")
-
-    def register_peer(self, client_socket):
-        client_socket.send(f"register_peer,{self.port}\n".encode())
 
     def register_shareable_files(self, client_socket):
         # List all files in a directory using os.scandir()
@@ -78,9 +83,9 @@ class Peer():
             for entry in entries:
                 if entry.is_file():  # Check if it's a file
                     file_name = entry.name
-                    file_hash = hash_file(self.dir + file_name)
+                    file_hash = hash_file(os.path.join(self.dir, file_name))
                     file_directories.append(
-                        self.dir+file_name, file_name, file_hash)
+                        (self.dir+file_name, file_name, file_hash))
                     client_socket.send(
                         f"register_file,{self.port},{file_name},{file_hash}\n".encode())
 
@@ -119,15 +124,51 @@ class Peer():
                 print(f"File {chunk_filename} has been sent.")
         print(f"{target_file_name} has been sent")
 
-    def close_connection(self, client_socket):
+    def close_tracker_connection(self, client_socket):
         client_socket.send("close_connection\n".encode())
 
+    def create_peer_server_socket(self):
+        server_socket = socket(AF_INET, SOCK_STREAM)
+        server_socket.bind(('', self.port))
+        server_socket.listen(1)
+        print("Peer Server Listening at", self.port)
+        return server_socket
+
+
+peer = Peer(*get_testing_init_values())
 
 while True:
-    peer = Peer(*get_testing_init_values())
+    cmd = input("Enter 'share' to allow other peers to retrieve files form this peer\nEnter 'get' to get a list of files to retrieve from\n").lower()
+
     client_socket = peer.initiate_client_socket_with_tracker()
-    # connectionSocket, addr = peer_socket.accept()
-    available_files = peer.get_available_files(client_socket)
-    # sentence = client_socket.recv(1024).decode()
-    # print(sentence)
-    break
+    peer.register_shareable_files(client_socket)
+
+    if cmd == "get":
+        # get the peer_port and file data in the form of a string and convert it to a dictionary using the ast module
+        peer_port_to_str_file_data = ast.literal_eval(
+            peer.get_available_files(client_socket))
+        print(peer_port_to_str_file_data)
+        peer_port_to_file_data = {}
+        for peer_port, files_string in peer_port_to_str_file_data.items():
+            file_entries = files_string.split(',')
+            peer_port_to_file_data[int(peer_port)] = [file_entries[i:i+2]
+                                                      for i in range(0, len(file_entries), 2)]
+
+        peer.close_client_socket_with_tracker(client_socket)
+        breakpoint()
+        # peer.initiate_client_socket_with_peer()
+
+        # TODO 2
+        # Prompt the user for which file they want from peer_port_to_file_data and from which peer
+        # use peer.initiate_client_socket_with_peer to communicate with the chosen peer to get the chosen file
+        # request a file from the chosen peer server
+        # download the file in the peer folder
+
+    elif cmd == "share":
+        peer.close_client_socket_with_tracker(client_socket)
+        server_socket = peer.create_peer_server_socket()
+
+        # TODO 1
+        # Allow the server socket to accept connections from other peers
+        # Allow the client peer to request a file
+        # Transfer the requested file in chunks to the client peer
