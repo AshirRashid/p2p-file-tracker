@@ -1,10 +1,14 @@
-# Sharing the file
+# CLI arguments
+# 1st argument: filename to share
 import socket
 import os
 import ast
+import sys
 from socket import *
 from transfer import send_file_chunk
 from globals import CHUNK_SIZE
+
+ALICE_DIR = "/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/alice_dir/"
 
 
 def get_peers(client_socket):
@@ -56,6 +60,7 @@ def distribute_list_items(items, m):
     return buckets
 
 
+filename = sys.argv[1]
 sender_client_socket = socket(AF_INET, SOCK_STREAM)
 tracker_name, tracker_port = "localhost", 12000
 sender_client_socket.connect((tracker_name, tracker_port))
@@ -66,7 +71,7 @@ sender_client_socket.send("close_connection\n".encode())
 sender_client_socket.close()
 
 chunk_paths = divide_file_into_chunks(
-    "/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/alice_dir/file1")
+    os.path.join(ALICE_DIR, filename))
 
 # mapping from peer_port to the chunk paths to be sent to this port
 peer_to_chunk_paths = dict(
