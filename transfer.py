@@ -46,7 +46,9 @@ def send_file_chunk(filepath, target_host, target_port):
     with socket(AF_INET, SOCK_STREAM) as s:
         print(f"Connecting to {target_host}:{target_port}")
         s.connect((target_host, target_port))
-        metadata = f"{filename}:{filesize}--meta-data--".encode('utf-8')
+        req_type = "share_chunk"
+        metadata = f"{req_type},{filename}:{filesize}--meta-data--".encode(
+            'utf-8')
 
         with open(filepath, 'rb') as f:
             bytes_read = f.read(4096)

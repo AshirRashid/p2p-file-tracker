@@ -32,7 +32,7 @@ def get_matching_files(port_to_filenames, file_to_search):
 
 def request_chunks_from_peer(client_socket, peer_port, filenames):
     for filename in filenames:
-        client_socket.send(f"request_file_chunk,{filename}\n".encode())
+        client_socket.send(f"request_chunk,{filename}\n".encode())
         available_files_str = client_socket.recv(1024).decode()
     data_dict = ast.literal_eval(available_files_str)
 

@@ -1,5 +1,5 @@
 from socket import *
-from transfer import get_chunks
+from transfer import process_chunk
 from globals import CHUNK_SIZE
 import sys
 import requests
@@ -34,28 +34,13 @@ def hash_file(filepath):
     return hash_sha256.hexdigest()
 
 
-def divide_file_into_chunks(filename, output_dir='chunks', chunk_size=32768):  # Savaize added
-    os.makedirs(output_dir, exist_ok=True)
-    chunk_number = 0
-    with open(filename, 'rb') as file:
-        while True:
-            chunk = file.read(chunk_size)
-            if not chunk:
-                break  # End of file reached
-            chunk_filename = os.path.join(
-                output_dir, f'{os.path.basename(filename)}_chunk_{chunk_number}')
-            with open(chunk_filename, 'wb') as chunk_file:
-                chunk_file.write(chunk)
-            chunk_number += 1
-    print(
-        f'File divided into {chunk_number} chunks and saved in {output_dir}.')
-    return chunk_number
-
-
 class Peer():
     def __init__(self, port, dirpath):
         self.port = port
         self.dir = dirpath
+
+        if not os.path.exists(self.dir):
+            os.makedirs(self.dir)
 
     def register_peer(self, client_socket):
         client_socket.send(f"register_peer,{self.port}\n".encode())
@@ -96,7 +81,24 @@ peer_client_socket = peer.initiate_client_socket_with_tracker()
 peer.register_peer(peer_client_socket)
 peer.close_client_socket_with_tracker(peer_client_socket)
 
+
 print(peer.dir)
 while True:
-    get_chunks(peer.port, peer.dir,
-               func_after_chunk_transfer=peer.register_chunk)
+    with socket(AF_INET, SOCK_STREAM) as server_socket:
+        server_socket.bind(('', peer.port))
+        server_socket.listen()
+
+        while True:
+            client_socket, address = server_socket.accept()
+            print(f"Connection from {address} has been established.")
+
+            received = client_socket.recv(1024).decode('utf-8')
+            req_type, req_args = received.split(",", 1)
+
+            if req_type == "share_chunk":
+                data = req_args
+                filename = process_chunk(data, peer.dir)
+                peer.register_chunk(filename)
+            elif req_type == "request_chunk":
+                pass
+            client_socket.close()
