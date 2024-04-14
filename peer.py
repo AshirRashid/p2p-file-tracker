@@ -7,9 +7,6 @@ import hashlib
 import os
 import ast
 
-# Savaiz created: list of tuples (path, name, hash) for easier reference
-file_directories = []
-
 
 def get_testing_init_values():
     port = int(sys.argv[1])
@@ -62,13 +59,6 @@ class Peer():
     def close_tracker_connection(self, client_socket):
         client_socket.send("close_connection\n".encode())
 
-    def create_peer_server_socket(self):
-        server_socket = socket(AF_INET, SOCK_STREAM)
-        server_socket.bind(('', self.port))
-        server_socket.listen(1)
-        print("Peer Server Listening at", self.port)
-        return server_socket
-
     def register_chunk(self, chunk_filename):
         client_socket = peer.initiate_client_socket_with_tracker()
         client_socket.send(
@@ -85,7 +75,7 @@ peer.close_client_socket_with_tracker(peer_client_socket)
 print(peer.dir)
 while True:
     with socket(AF_INET, SOCK_STREAM) as server_socket:
-        server_socket.bind(('', peer.port))
+        server_socket.bind(('localhost', peer.port))
         server_socket.listen(1)
 
         while True:

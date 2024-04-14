@@ -3,7 +3,7 @@ from globals import CHUNK_SIZE
 import os
 
 
-def get_chunks(peer_port, save_dir='received_chunks', host='', func_after_chunk_transfer=(lambda filename: filename)):
+def get_chunks(peer_port, save_dir='received_chunks', host='localhost', func_after_chunk_transfer=(lambda filename: filename)):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
