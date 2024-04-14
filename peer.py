@@ -1,5 +1,6 @@
 from socket import *
 from transfer import get_chunks
+from globals import CHUNK_SIZE
 import sys
 import requests
 import hashlib
@@ -95,43 +96,7 @@ peer_client_socket = peer.initiate_client_socket_with_tracker()
 peer.register_peer(peer_client_socket)
 peer.close_client_socket_with_tracker(peer_client_socket)
 
-
 print(peer.dir)
 while True:
-    # peer_server_socket = peer.create_peer_server_socket()
-    # print("Accepting Connections")
-    # connection_socket, addr = peer_server_socket.accept()
-    # print("Connection Established")
     get_chunks(peer.port, peer.dir,
                func_after_chunk_transfer=peer.register_chunk)
-    # while True:
-    #     sentence = connection_socket.recv(1024).decode()
-    #     print(sentence)
-
-    # print("Connection Established")
-
-    # received = connection_socket.recv(1024).decode()
-    # metadata, _, partial_content = received.partition('\n')
-    # chunk_filename, filesize = metadata.split(':', 1)
-    # chunk_filename = os.path.basename(chunk_filename)
-
-    # path = os.path.join(peer.dir, chunk_filename)
-    # with open(path, 'wb') as f:
-    #     f.write(partial_content.encode())
-    #     filesize -= len(partial_content)
-    #     while filesize > 0:
-    #         data = connection_socket.recv(4096)
-    #         f.write(data)
-    #         filesize -= len(data)
-
-    # print(f"File {chunk_filename} has been received successfully.")
-    # connection_socket.close()
-
-    # peer_client_socket = peer.initiate_client_socket_with_tracker()
-    # peer.register_chunk(peer_client_socket, )
-    # peer.close_client_socket_with_tracker(peer_client_socket)
-
-
-# def start_server(host='0.0.0.0', port=5000, save_dir='received_chunks'):
-#     if not os.path.exists(save_dir):
-#         os.makedirs(save_dir)

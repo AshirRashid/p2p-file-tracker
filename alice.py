@@ -4,6 +4,7 @@ import os
 import ast
 from socket import *
 from transfer import send_file_chunk
+from globals import CHUNK_SIZE
 
 
 def get_peers(client_socket):
@@ -12,7 +13,7 @@ def get_peers(client_socket):
     return peers_set
 
 
-def divide_file_into_chunks(filename, output_dir='chunks', chunk_size=400):
+def divide_file_into_chunks(filename, output_dir='chunks'):
     """
     Divide a file into chunks and save each chunk as a separate file.
 
@@ -28,7 +29,7 @@ def divide_file_into_chunks(filename, output_dir='chunks', chunk_size=400):
 
     with open(filename, 'rb') as file:
         while True:
-            chunk = file.read(chunk_size)
+            chunk = file.read(CHUNK_SIZE)
             if not chunk:
                 break  # End of file reached
             chunk_filename = os.path.join(
