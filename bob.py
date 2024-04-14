@@ -1,3 +1,21 @@
+from socket import *
+
+serverName = "localhost"
+serverPort = 12000
+
+clientSocket = socket(AF_INET, SOCK_STREAM)
+clientSocket.connect((serverName, serverPort))
+
+while True:
+    sentence = input("Input lowercase sentence:")
+    clientSocket.send(sentence.encode())
+    modifiedSentence = clientSocket.recv(1024)
+    if sentence == "exit":
+        break
+    print("From Server:", modifiedSentence.decode())
+clientSocket.close()
+
+
 # Retreiving the file
 def get_available_files(self, client_socket):
     client_socket.send("get_available_files\n".encode())

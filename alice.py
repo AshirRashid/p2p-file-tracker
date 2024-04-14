@@ -64,13 +64,11 @@ sender_client_socket.send("close_connection\n".encode())
 sender_client_socket.close()
 
 chunk_paths = divide_file_into_chunks(
-    "/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/peer1_dir/file1")
+    "/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/alice_dir/file1")
 
 # mapping from peer_port to the chunk paths to be sent to this port
 peer_to_chunk_paths = dict(
     zip(peers, distribute_list_items(chunk_paths, len(peers))))
-
-breakpoint()
 
 
 def send_file_chunk(filepath, target_host, target_port):

@@ -82,9 +82,11 @@ class Peer():
         print("Peer Server Listening at", self.port)
         return server_socket
 
-    def register_chunk(self, client_socket, file_hash, chunk_filename):
+    def register_chunk(self, chunk_filename):
+        client_socket = peer.initiate_client_socket_with_tracker()
         client_socket.send(
-            f"register_chunk,{self.port},{file_hash},{chunk_filename}\n".encode())
+            f"register_chunk,{self.port},{chunk_filename}\n".encode())
+        peer.close_tracker_connection(client_socket)
 
 
 peer = Peer(*get_testing_init_values())
@@ -122,20 +124,24 @@ def get_chunks(peer_port, save_dir='received_chunks', host=''):
                     filesize -= len(data)
 
             print(f"File {filename} has been received successfully.")
+            file_directories.append(filename)
+            peer.register_chunk(filename)
+            print(file_directories)
             client_socket.close()
 
 
+print(peer.dir)
 while True:
     # peer_server_socket = peer.create_peer_server_socket()
     # print("Accepting Connections")
     # connection_socket, addr = peer_server_socket.accept()
     # print("Connection Established")
-    get_chunks(peer.port)
+    get_chunks(peer.port, peer.dir)
     # while True:
     #     sentence = connection_socket.recv(1024).decode()
     #     print(sentence)
 
-    print("Connection Established")
+    # print("Connection Established")
 
     # received = connection_socket.recv(1024).decode()
     # metadata, _, partial_content = received.partition('\n')

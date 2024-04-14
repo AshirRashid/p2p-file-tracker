@@ -30,15 +30,10 @@ while True:
                 print("Peer DB:", peer_db)
             elif req_type == "get_peers":
                 connectionSocket.send(str(peer_db).encode())
-
-            elif req_type == "register_file":  # Savaiz changed for having multiple files in same port
-                peer_port, file_name, file_hash = req_args
-                if peer_port in peer_to_file_data:
-                    if not (file_hash in [registered_file_data[1] for registered_file_data in peer_to_file_data[peer_port]]):
-                        peer_to_file_data[peer_port].append(
-                            (file_name, file_hash))
-                else:
-                    peer_to_file_data[peer_port] = [(file_name, file_hash)]
+            elif req_type == "register_chunk":  # Savaiz changed for having multiple files in same port
+                peer_port, file_name = req_args
+                peer_to_file_data[peer_port] = peer_to_file_data.get(
+                    peer_port, set()).union({file_name})
                 print(peer_to_file_data)
             elif req_type == "get_available_files":  # Savaiz wrote
                 peer_port_to_str_file_data = {peer_port: ",".join(
