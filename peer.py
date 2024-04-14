@@ -1,4 +1,5 @@
 from socket import *
+from transfer import get_chunks
 import sys
 import requests
 import hashlib
@@ -95,48 +96,14 @@ peer.register_peer(peer_client_socket)
 peer.close_client_socket_with_tracker(peer_client_socket)
 
 
-def get_chunks(peer_port, save_dir='received_chunks', host=''):
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    with socket(AF_INET, SOCK_STREAM) as server_socket:
-        server_socket.bind((host, peer_port))
-        server_socket.listen()
-        print(f"Listening as {host}:{peer_port}...")
-
-        while True:
-            client_socket, address = server_socket.accept()
-            print(f"Connection from {address} has been established.")
-
-            received = client_socket.recv(1024).decode('utf-8')
-            metadata, _, partial_content = received.partition('\n')
-            filename, filesize = metadata.split(':', 1)
-            filename = os.path.basename(filename)
-            filesize = int(filesize)
-
-            path = os.path.join(save_dir, filename)
-            with open(path, 'wb') as f:
-                f.write(partial_content.encode('utf-8'))
-                filesize -= len(partial_content)
-                while filesize > 0:
-                    data = client_socket.recv(4096)
-                    f.write(data)
-                    filesize -= len(data)
-
-            print(f"File {filename} has been received successfully.")
-            file_directories.append(filename)
-            peer.register_chunk(filename)
-            print(file_directories)
-            client_socket.close()
-
-
 print(peer.dir)
 while True:
     # peer_server_socket = peer.create_peer_server_socket()
     # print("Accepting Connections")
     # connection_socket, addr = peer_server_socket.accept()
     # print("Connection Established")
-    get_chunks(peer.port, peer.dir)
+    get_chunks(peer.port, peer.dir,
+               func_after_chunk_transfer=peer.register_chunk)
     # while True:
     #     sentence = connection_socket.recv(1024).decode()
     #     print(sentence)

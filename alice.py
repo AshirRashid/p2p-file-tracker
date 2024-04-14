@@ -3,6 +3,7 @@ import socket
 import os
 import ast
 from socket import *
+from transfer import send_file_chunk
 
 
 def get_peers(client_socket):
@@ -69,24 +70,6 @@ chunk_paths = divide_file_into_chunks(
 # mapping from peer_port to the chunk paths to be sent to this port
 peer_to_chunk_paths = dict(
     zip(peers, distribute_list_items(chunk_paths, len(peers))))
-
-
-def send_file_chunk(filepath, target_host, target_port):
-    filesize = os.path.getsize(filepath)
-    filename = os.path.basename(filepath)
-    with socket(AF_INET, SOCK_STREAM) as s:
-        print(f"Connecting to {target_host}:{target_port}")
-        s.connect((target_host, target_port))
-        # Notice the newline character
-        s.send(f"{filename}:{filesize}\n".encode('utf-8'))
-
-        with open(filepath, 'rb') as f:
-            while True:
-                bytes_read = f.read(4096)
-                if not bytes_read:
-                    break
-                s.sendall(bytes_read)
-        print(f"File {filepath[62:]} has been sent.")
 
 
 for peer_port in peer_to_chunk_paths:
