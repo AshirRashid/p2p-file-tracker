@@ -1,17 +1,22 @@
-# CLI argumentd
-# command: options | get_file {filename}
-from socket import *
-from transfer import process_chunk
+"""CLI argumentd
+command: options | get_file {filename}
+"""
 import ast
 import os
 import sys
+from socket import *
+from transfer import process_chunk
+from globals import BOB_DIR, TRACKER_PORT, TRACKER_HOST
 
 
-bob_dir = "/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/bob_dir"
-tracker_host, tracker_port = "localhost", 12000
+bob_path = os.path.abspath(os.path.join(os.getcwd(), BOB_DIR))
+if not os.path.exists(bob_path):
+    os.makedirs(bob_path)
 
 
 def get_available_files(client_socket):
+    """Get a mapping of peer port to available file chunks from the tracker
+    """
     client_socket.send("get_available_files\n".encode())
     available_files_str = client_socket.recv(1024).decode()
     data_dict = ast.literal_eval(available_files_str)
@@ -23,6 +28,8 @@ def get_available_files(client_socket):
 
 
 def get_matching_files(port_to_filenames, file_to_search):
+    """Get all chunks matchign the file_to_search
+    """
     search_pattern = file_to_search + "_chunk_"
     port_to_matching_files = {}
 
@@ -37,13 +44,17 @@ def get_matching_files(port_to_filenames, file_to_search):
 
 
 def request_chunk_from_peer(client_socket, filename):
+    """Request a peer using a connected socket for a specific file chunk
+    """
     client_socket.send(f"request_chunk,{filename}".encode())
     data = client_socket.recv(1024).decode()
     filename = process_chunk(
-        data, bob_dir)
+        data, bob_path)
 
 
 def reconstruct_file(directory, base_filename):
+    """Reconstruct a file from chunks
+    """
     # List to hold tuples of chunk number and file path
     chunks = []
 
@@ -83,7 +94,7 @@ def reconstruct_file(directory, base_filename):
 cmd = sys.argv[1]
 
 clientSocket = socket(AF_INET, SOCK_STREAM)
-clientSocket.connect((tracker_host, tracker_port))
+clientSocket.connect((TRACKER_HOST, TRACKER_PORT))
 
 peer_port_to_filenames = get_available_files(clientSocket)
 clientSocket.send("close_connection\n".encode())
@@ -96,6 +107,7 @@ if cmd == "options":
         for filename in chunks:
             base_name = filename.rsplit('_chunk_', 1)[0]
             base_filenames.add(base_name)
+    print("Files Available for Download:")
     print(*base_filenames)
 
 elif cmd == "get":
@@ -111,4 +123,4 @@ elif cmd == "get":
                 request_chunk_from_peer(
                     client_socket, filename)
 
-    reconstruct_file(bob_dir, base_filename)
+    reconstruct_file(bob_path, base_filename)

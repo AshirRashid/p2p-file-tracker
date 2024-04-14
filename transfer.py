@@ -1,9 +1,11 @@
+import os
 from socket import *
 from globals import CHUNK_SIZE
-import os
 
 
 def get_chunks(peer_port, save_dir='received_chunks', host='localhost', func_after_chunk_transfer=(lambda filename: filename)):
+    """Connect to an address by creating a socket. Retrieve and save file chunks from that address.
+    """
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -24,6 +26,8 @@ def get_chunks(peer_port, save_dir='received_chunks', host='localhost', func_aft
 
 
 def process_chunk(data, save_dir):
+    """Save the data recieved over a socket to a file
+    """
     metadata, chunk_content = data.split("--meta-data--")
     if metadata:
         filename, filesize = metadata.split(':')
@@ -41,6 +45,8 @@ def process_chunk(data, save_dir):
 
 
 def send_file_chunk(filepath, target_host, target_port):
+    """Send a file chunk to a given address
+    """
     filesize = os.path.getsize(filepath)
     filename = os.path.basename(filepath)
     with socket(AF_INET, SOCK_STREAM) as s:

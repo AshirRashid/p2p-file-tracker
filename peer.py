@@ -1,34 +1,8 @@
+import sys
+import os
 from socket import *
 from transfer import process_chunk
-from globals import CHUNK_SIZE
-import sys
-import requests
-import hashlib
-import os
-import ast
-
-
-def get_testing_init_values():
-    port = int(sys.argv[1])
-    path = os.getcwd()
-    dirpath = os.path.abspath(os.path.join(path, f"peer{sys.argv[2]}_dir/"))
-    print(dirpath)
-
-    return port, dirpath
-
-
-def hash_file(filepath):
-    """Generate SHA-256 hash of a file."""
-    hash_sha256 = hashlib.sha256()
-    try:
-        with open(filepath, "rb") as f:  # Open the file in binary mode
-            for chunk in iter(lambda: f.read(4096), b""):
-                # Update the hash with the chunk of file
-                hash_sha256.update(chunk)
-    except Exception as e:
-        return f"An error occurred: {e}"
-
-    return hash_sha256.hexdigest()
+from globals import CHUNK_SIZE, TRACKER_PORT, TRACKER_HOST
 
 
 class Peer():
@@ -40,33 +14,44 @@ class Peer():
             os.makedirs(self.dir)
 
     def register_peer(self, client_socket):
+        """Inform the tracker that self is a part of the network
+        """
         client_socket.send(f"register_peer,{self.port}\n".encode())
 
     def initiate_client_socket_with_tracker(self):
-        # Initiate a tcp client socket and connect with the tracker
-        # Register peer and their files with the tracker
+        """Initiate a tcp client socket and connect with the tracker
+        """
         client_socket = socket(AF_INET, SOCK_STREAM)
-        tracker_name, tracker_port = "localhost", 12000
-        client_socket.connect((tracker_name, tracker_port))
+        client_socket.connect((TRACKER_HOST, TRACKER_PORT))
         print("Connection Established")
         return client_socket
 
     def close_client_socket_with_tracker(self, client_socket):
+        """Make sure the a socket connected with the tracker is properly closed on both sides
+        """
         self.close_tracker_connection(client_socket)
         client_socket.close()
         print("Connection Closed")
 
     def close_tracker_connection(self, client_socket):
+        """Informs the tracker that self is about to close the connection
+        """
         client_socket.send("close_connection\n".encode())
 
     def register_chunk(self, chunk_filename):
+        """Informs the tracker that self has a certain chunk
+        """
         client_socket = peer.initiate_client_socket_with_tracker()
         client_socket.send(
             f"register_chunk,{self.port},{chunk_filename}\n".encode())
         peer.close_tracker_connection(client_socket)
 
 
-peer = Peer(*get_testing_init_values())
+port = int(sys.argv[1])
+path = os.getcwd()
+dirpath = os.path.abspath(os.path.join(path, sys.argv[2]))
+
+peer = Peer(port, dirpath)
 peer_client_socket = peer.initiate_client_socket_with_tracker()
 peer.register_peer(peer_client_socket)
 peer.close_client_socket_with_tracker(peer_client_socket)

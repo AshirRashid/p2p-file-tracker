@@ -6,12 +6,16 @@ import ast
 import sys
 from socket import *
 from transfer import send_file_chunk
-from globals import CHUNK_SIZE
+from globals import CHUNK_SIZE, ALICE_DIR, TRACKER_PORT, TRACKER_HOST
 
-ALICE_DIR = "/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/alice_dir/"
+alice_path = os.path.abspath(os.path.join(os.getcwd(), ALICE_DIR))
+if not os.path.exists(alice_path):
+    os.makedirs(alice_path)
 
 
 def get_peers(client_socket):
+    """Get a set of peers form the tracker
+    """
     client_socket.send("get_peers\n".encode())
     peers_set = client_socket.recv(1024).decode()
     return peers_set
@@ -46,6 +50,8 @@ def divide_file_into_chunks(filename, output_dir='chunks'):
 
 
 def distribute_list_items(items, m):
+    """Distributes elements of items into m buckets. Used to distribute file chunks between peers
+    """
     n = len(items)
     base = n // m
     remainder = n % m
@@ -62,8 +68,7 @@ def distribute_list_items(items, m):
 
 filename = sys.argv[1]
 sender_client_socket = socket(AF_INET, SOCK_STREAM)
-tracker_name, tracker_port = "localhost", 12000
-sender_client_socket.connect((tracker_name, tracker_port))
+sender_client_socket.connect((TRACKER_HOST, TRACKER_PORT))
 print("Connection Established")
 peers = ast.literal_eval(get_peers(sender_client_socket))
 print(peers)
@@ -71,7 +76,7 @@ sender_client_socket.send("close_connection\n".encode())
 sender_client_socket.close()
 
 chunk_paths = divide_file_into_chunks(
-    os.path.join(ALICE_DIR, filename))
+    os.path.join(alice_path, filename))
 
 # mapping from peer_port to the chunk paths to be sent to this port
 peer_to_chunk_paths = dict(
