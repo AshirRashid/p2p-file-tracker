@@ -1,4 +1,5 @@
 from socket import *
+from transfer import process_chunk
 import ast
 
 serverName = "localhost"
@@ -30,16 +31,12 @@ def get_matching_files(port_to_filenames, file_to_search):
     return port_to_matching_files
 
 
-def request_chunks_from_peer(client_socket, peer_port, filenames):
-    for filename in filenames:
-        client_socket.send(f"request_chunk,{filename}\n".encode())
-        available_files_str = client_socket.recv(1024).decode()
-    data_dict = ast.literal_eval(available_files_str)
-
-    # Reverse the string concatenation of filenames
-    peer_port_to_file_data = {int(port): set(filenames.split(','))
-                              for port, filenames in data_dict.items()}
-    return peer_port_to_file_data
+def request_chunk_from_peer(client_socket, filename):
+    client_socket.send(f"request_chunk,{filename}".encode())
+    data = client_socket.recv(1024).decode()
+    print(data)
+    filename = process_chunk(
+        data, "/Users/ashir/Desktop/networks/final_project/Networks_Project_Savaiz/bob_dir")
 
 
 clientSocket = socket(AF_INET, SOCK_STREAM)
@@ -51,6 +48,15 @@ clientSocket.close()
 
 port_to_matching_filenames = get_matching_files(
     peer_port_to_filenames, "file1")
+
+
+for peer_port, filenames in port_to_matching_filenames.items():
+    for filename in filenames:
+        with socket(AF_INET, SOCK_STREAM) as client_socket:
+            client_socket.connect(('', peer_port))
+            print("Connection Established with", peer_port)
+            request_chunk_from_peer(
+                client_socket, filename)
 
 
 breakpoint()

@@ -86,7 +86,7 @@ print(peer.dir)
 while True:
     with socket(AF_INET, SOCK_STREAM) as server_socket:
         server_socket.bind(('', peer.port))
-        server_socket.listen()
+        server_socket.listen(1)
 
         while True:
             client_socket, address = server_socket.accept()
@@ -94,11 +94,23 @@ while True:
 
             received = client_socket.recv(1024).decode('utf-8')
             req_type, req_args = received.split(",", 1)
+            print(received)
+
+            print("Request Received of type", req_type)
 
             if req_type == "share_chunk":
                 data = req_args
                 filename = process_chunk(data, peer.dir)
                 peer.register_chunk(filename)
+
             elif req_type == "request_chunk":
-                pass
+                filename = req_args
+                filepath = os.path.join(peer.dir, filename)
+                filesize = os.path.getsize(filepath)
+                metadata = f"{filename}:{filesize}--meta-data--".encode(
+                    'utf-8')
+                with open(filepath, 'rb') as f:
+                    bytes_read = f.read(4096)
+                    client_socket.sendall(metadata + bytes_read)
+                    print(f"File {filepath[62:]} has been sent.")
             client_socket.close()
