@@ -55,6 +55,9 @@ class Peer():
         self.port = port
         self.dir = dirpath
 
+    def register_peer(self, client_socket):
+        client_socket.send(f"register_peer,{self.port}\n".encode())
+
     def initiate_client_socket_with_tracker(self):
         # Initiate a tcp client socket and connect with the tracker
         # Register peer and their files with the tracker
@@ -64,65 +67,10 @@ class Peer():
         print("Connection Established")
         return client_socket
 
-    def initiate_client_socket_with_peer(self, peer_port):
-        # Initiate a tcp client socket and connect with the tracker
-        # Register peer and their files with the tracker
-        client_socket = socket(AF_INET, SOCK_STREAM)
-        client_socket.connect(('', peer_port))
-        print("Connection Established")
-        return client_socket
-
     def close_client_socket_with_tracker(self, client_socket):
         self.close_tracker_connection(client_socket)
         client_socket.close()
         print("Connection Closed")
-
-    def register_shareable_files(self, client_socket):
-        # List all files in a directory using os.scandir()
-        with os.scandir(self.dir) as entries:
-            for entry in entries:
-                if entry.is_file():  # Check if it's a file
-                    file_name = entry.name
-                    file_hash = hash_file(os.path.join(self.dir, file_name))
-                    file_directories.append(
-                        (self.dir+file_name, file_name, file_hash))
-                    client_socket.send(
-                        f"register_file,{self.port},{file_name},{file_hash}\n".encode())
-
-    def get_available_files(self, client_socket):
-        client_socket.send("get_available_files\n".encode())
-        available_files = client_socket.recv(1024).decode()
-        return available_files
-
-    def get_peer_with_file_by_hash(self, client_socket, file_hash):  # Savaiz added
-        client_socket.send(
-            f"get_peer_with_file_by_hash,{file_hash}\n".encode())
-
-    def send_file_to_peer(self, client_socket, peer_port, target_file_hash):  # Savaiz added
-        for path, file_name, file_hash in file_directories:
-            if file_hash == target_file_hash:
-                target_file_path = path
-                target_file_name = file_name
-                print(target_file_path)
-                break
-        chunk_number = divide_file_into_chunks(target_file_path)
-        for i in range(chunk_number):
-            chunk_filename = os.path.join(
-                f'{os.path.basename(target_file_path)}_chunk_{i}')
-            with socket(AF_INET, SOCK_STREAM) as s:
-                print(f"Connecting to {'127.0.0.1'}:{peer_port}")
-                s.connect(('127.0.0.1', peer_port))
-                s.send(f"{chunk_filename}:{os.path.getsize(chunk_filename)}\n".encode(
-                    'utf-8'))  # Notice the newline character
-
-                with open(chunk_filename, 'rb') as f:
-                    while True:
-                        bytes_read = f.read(4096)
-                        if not bytes_read:
-                            break
-                        s.sendall(bytes_read)
-                print(f"File {chunk_filename} has been sent.")
-        print(f"{target_file_name} has been sent")
 
     def close_tracker_connection(self, client_socket):
         client_socket.send("close_connection\n".encode())
@@ -134,41 +82,83 @@ class Peer():
         print("Peer Server Listening at", self.port)
         return server_socket
 
+    def register_chunk(self, client_socket, file_hash, chunk_filename):
+        client_socket.send(
+            f"register_chunk,{self.port},{file_hash},{chunk_filename}\n".encode())
+
 
 peer = Peer(*get_testing_init_values())
+peer_client_socket = peer.initiate_client_socket_with_tracker()
+peer.register_peer(peer_client_socket)
+peer.close_client_socket_with_tracker(peer_client_socket)
+
+
+def get_chunks(peer_port, save_dir='received_chunks', host=''):
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    with socket(AF_INET, SOCK_STREAM) as server_socket:
+        server_socket.bind((host, peer_port))
+        server_socket.listen()
+        print(f"Listening as {host}:{peer_port}...")
+
+        while True:
+            client_socket, address = server_socket.accept()
+            print(f"Connection from {address} has been established.")
+
+            received = client_socket.recv(1024).decode('utf-8')
+            metadata, _, partial_content = received.partition('\n')
+            filename, filesize = metadata.split(':', 1)
+            filename = os.path.basename(filename)
+            filesize = int(filesize)
+
+            path = os.path.join(save_dir, filename)
+            with open(path, 'wb') as f:
+                f.write(partial_content.encode('utf-8'))
+                filesize -= len(partial_content)
+                while filesize > 0:
+                    data = client_socket.recv(4096)
+                    f.write(data)
+                    filesize -= len(data)
+
+            print(f"File {filename} has been received successfully.")
+            client_socket.close()
+
 
 while True:
-    cmd = input("Enter 'share' to allow other peers to retrieve files form this peer\nEnter 'get' to get a list of files to retrieve from\n").lower()
+    # peer_server_socket = peer.create_peer_server_socket()
+    # print("Accepting Connections")
+    # connection_socket, addr = peer_server_socket.accept()
+    # print("Connection Established")
+    get_chunks(peer.port)
+    # while True:
+    #     sentence = connection_socket.recv(1024).decode()
+    #     print(sentence)
 
-    client_socket = peer.initiate_client_socket_with_tracker()
-    peer.register_shareable_files(client_socket)
+    print("Connection Established")
 
-    if cmd == "get":
-        # get the peer_port and file data in the form of a string and convert it to a dictionary using the ast module
-        peer_port_to_str_file_data = ast.literal_eval(
-            peer.get_available_files(client_socket))
-        print(peer_port_to_str_file_data)
-        peer_port_to_file_data = {}
-        for peer_port, files_string in peer_port_to_str_file_data.items():
-            file_entries = files_string.split(',')
-            peer_port_to_file_data[int(peer_port)] = [file_entries[i:i+2]
-                                                      for i in range(0, len(file_entries), 2)]
+    # received = connection_socket.recv(1024).decode()
+    # metadata, _, partial_content = received.partition('\n')
+    # chunk_filename, filesize = metadata.split(':', 1)
+    # chunk_filename = os.path.basename(chunk_filename)
 
-        peer.close_client_socket_with_tracker(client_socket)
-        breakpoint()
-        # peer.initiate_client_socket_with_peer()
+    # path = os.path.join(peer.dir, chunk_filename)
+    # with open(path, 'wb') as f:
+    #     f.write(partial_content.encode())
+    #     filesize -= len(partial_content)
+    #     while filesize > 0:
+    #         data = connection_socket.recv(4096)
+    #         f.write(data)
+    #         filesize -= len(data)
 
-        # TODO 2
-        # Prompt the user for which file they want from peer_port_to_file_data and from which peer
-        # use peer.initiate_client_socket_with_peer to communicate with the chosen peer to get the chosen file
-        # request a file from the chosen peer server
-        # download the file in the peer folder
+    # print(f"File {chunk_filename} has been received successfully.")
+    # connection_socket.close()
 
-    elif cmd == "share":
-        peer.close_client_socket_with_tracker(client_socket)
-        server_socket = peer.create_peer_server_socket()
+    # peer_client_socket = peer.initiate_client_socket_with_tracker()
+    # peer.register_chunk(peer_client_socket, )
+    # peer.close_client_socket_with_tracker(peer_client_socket)
 
-        # TODO 1
-        # Allow the server socket to accept connections from other peers
-        # Allow the client peer to request a file
-        # Transfer the requested file in chunks to the client peer
+
+# def start_server(host='0.0.0.0', port=5000, save_dir='received_chunks'):
+#     if not os.path.exists(save_dir):
+#         os.makedirs(save_dir)

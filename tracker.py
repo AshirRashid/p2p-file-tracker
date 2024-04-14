@@ -7,11 +7,12 @@ tracker_socket = socket(AF_INET, SOCK_STREAM)
 tracker_socket.bind(('', tracker_port))
 tracker_socket.listen(1)
 
+peer_db = set()
 peer_to_file_data = {}  # peer_port -> [file_name, file_hash]\
 
 print("The server is ready to receive")
 while True:
-    print("Attempting to Connect")
+    print("Accepting Connections")
     connectionSocket, addr = tracker_socket.accept()
     print("Connection Established")
     is_connection_close_req_recieved = False
@@ -21,7 +22,16 @@ while True:
             req_split = req.split(",")
             req_type = req_split[0]
             req_args = req_split[1:]
-            if req_type == "register_file":  # Savaiz changed for having multiple files in same port
+            print("Request Recieved:", req_type)
+            if req_type == "register_peer":
+                peer_port = req_args[0]
+                peer_db.add(peer_port)
+                print(f"{peer_port} Registered as a Peer")
+                print("Peer DB:", peer_db)
+            elif req_type == "get_peers":
+                connectionSocket.send(str(peer_db).encode())
+
+            elif req_type == "register_file":  # Savaiz changed for having multiple files in same port
                 peer_port, file_name, file_hash = req_args
                 if peer_port in peer_to_file_data:
                     if not (file_hash in [registered_file_data[1] for registered_file_data in peer_to_file_data[peer_port]]):
